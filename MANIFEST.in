@@ -1,0 +1,2 @@
+include versioneer.py
+include irclick/_version.py
