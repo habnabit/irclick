@@ -16,14 +16,13 @@
     and might cause us issues.
 """
 import re
-from collections import deque
 
 from click.exceptions import UsageError, NoSuchOption, BadOptionUsage, \
      BadArgumentUsage
 from click.parser import Argument, Option, normalize_opt
 
 
-def _unpack_args(args, nargs_spec):
+def _unpack_args(args, argspecs):
     """Given an iterable of arguments and an iterable of nargs specifications,
     it returns a tuple with all the unpacked arguments at the first index
     and all remaining arguments as the second.
@@ -33,11 +32,18 @@ def _unpack_args(args, nargs_spec):
 
     Missing items are filled with `None`.
     """
-    nargs_spec = deque(nargs_spec)
+    nargs_spec = [x.nargs for x in reversed(argspecs)]
     rv = []
+    star_consumed = False
 
     while nargs_spec:
-        nargs = nargs_spec.popleft()
+        nargs = nargs_spec.pop()
+
+        if nargs < 0:
+            if star_consumed:
+                raise RuntimeError('star')
+            star_consumed = True
+
         if nargs >= 1:
             rv.append(args.pop_nargs(nargs))
         elif nargs == -1:
@@ -48,12 +54,6 @@ def _unpack_args(args, nargs_spec):
             raise RuntimeError(nargs)
 
     return tuple(rv), args.pop_rest()
-
-
-def _error_opt_args(nargs, opt):
-    if nargs == 1:
-        raise BadOptionUsage(opt, '%s option requires an argument' % opt)
-    raise BadOptionUsage(opt, '%s option requires %d arguments' % (opt, nargs))
 
 
 class Splut(object):
@@ -211,13 +211,12 @@ class OptionParser(object):
 
     def _process_args_for_args(self, state):
         state.shift_largs()
-        pargs, args = _unpack_args(state,
-                                   [x.nargs for x in self._args])
+        pargs, largs = _unpack_args(state, self._args)
 
         for idx, arg in enumerate(self._args):
             arg.process(pargs[idx], state)
 
-        return args
+        return largs
 
     def _process_args_for_options(self, state):
         while True:

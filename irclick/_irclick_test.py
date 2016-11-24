@@ -1,5 +1,6 @@
 import click
 import pytest
+from click.exceptions import BadOptionUsage
 
 from irclick._irclick import line_command, trailer_argument
 
@@ -45,10 +46,14 @@ def test_trailer(line, expected):
 
 
 @pytest.mark.parametrize(('line', 'expected'), [
-    (u'arg1', {'one': None, 'arg': u'arg1', 'trailer': u''}),
-    (u'hi hello', {'one': None, 'arg': u'hi', 'trailer': u'hello'}),
+    (u'arg1', {'arg': u'arg1'}),
+    (u'hi hello', {'arg': u'hi', 'trailer': u'hello'}),
     (u'arg2 -1hey hi hello', {'one': u'hey', 'arg': u'arg2', 'trailer': u'hi hello'}),
     (u'-1hey arg2 hi hello', {'one': u'hey', 'arg': u'arg2', 'trailer': u'hi hello'}),
+    (u'-- -1hey arg2 hi hello', {'arg': u'-1hey', 'trailer': u'arg2 hi hello'}),
+    (u'-1hey -- arg2 hi hello', {'one': u'hey', 'arg': u'arg2', 'trailer': u'hi hello'}),
+    (u'-1hey arg2 -- hi hello', {'one': u'hey', 'arg': u'arg2', 'trailer': u'hi hello'}),
+    (u'-1hey arg2 hi -- hello', {'one': u'hey', 'arg': u'arg2', 'trailer': u'hi -- hello'}),
 ])
 def test_trailer_and_arg(line, expected):
     state = {}
@@ -61,6 +66,54 @@ def test_trailer_and_arg(line, expected):
     def cmd1(one, arg, trailer):
         assert not state
         state.update(one=one, arg=arg, trailer=trailer)
+
+    cmd1.invoke_line(line)
+    assert {k: v for k, v in state.items() if v} == expected
+
+
+@pytest.mark.parametrize(('line', 'expected'), [
+    (u'-21hey', {'one': u'hey', 'two': True}),
+    (u'-12hey', {'one': u'2hey'}),
+    (u'--one=--two', {'one': u'--two'}),
+    (u'-1=-2', {'one': u'=-2'}),
+    (u'-21=-2', {'one': u'=-2', 'two': True}),
+    (u'--two=two', BadOptionUsage),
+])
+def test_flag_miscellany(line, expected):
+    state = {}
+
+    @line_command()
+    @click.command()
+    @click.option('-1', '--one')
+    @click.option('-2', '--two/--no-two')
+    def cmd1(one, two):
+        assert not state
+        state.update(one=one, two=two)
+
+    if isinstance(expected, type):
+        with pytest.raises(expected):
+            cmd1.invoke_line(line)
+        assert state == {}
+    else:
+        cmd1.invoke_line(line)
+        assert {k: v for k, v in state.items() if v} == expected
+
+
+@pytest.mark.parametrize(('line', 'expected'), [
+    (u'one', {'arg1': u'one', 'arg2': ()}),
+    (u'one two', {'arg1': u'one', 'arg2': (u'two',)}),
+    (u'one two three', {'arg1': u'one', 'arg2': (u'two', 'three')}),
+])
+def test_varargs(line, expected):
+    state = {}
+
+    @line_command()
+    @click.command()
+    @click.argument('arg1')
+    @click.argument('arg2', nargs=-1)
+    def cmd1(arg1, arg2):
+        assert not state
+        state.update(arg1=arg1, arg2=arg2)
 
     cmd1.invoke_line(line)
     assert state == expected
