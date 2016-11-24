@@ -1,3 +1,4 @@
 *.egg*
 htmlcov*
+/.cache
 /.tox
