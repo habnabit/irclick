@@ -75,6 +75,33 @@ def test_trailer_and_arg(line, expected):
 
 
 @pytest.mark.parametrize(('line', 'expected'), [
+    (u'arg1 arg2', {'arg': (u'arg1', u'arg2')}),
+    (u'hey hi hello', {'arg': (u'hey', u'hi'), 'trailer': u'hello'}),
+    (u'arg3 -1hey arg4 hi hello', {'one': u'hey', 'arg': (u'arg3', u'arg4'), 'trailer': u'hi hello'}),
+    (u'-1hey arg3 arg4 hi hello', {'one': u'hey', 'arg': (u'arg3', u'arg4'), 'trailer': u'hi hello'}),
+    (u'-- arg3 -1hey arg4 hi hello', {'arg': (u'arg3', u'-1hey'), 'trailer': u'arg4 hi hello'}),
+    (u'arg3 -- -1hey arg4 hi hello', {'arg': (u'arg3', u'-1hey'), 'trailer': u'arg4 hi hello'}),
+    (u'arg3 -1hey -- arg4 hi hello', {'one': u'hey', 'arg': (u'arg3', u'arg4'), 'trailer': u'hi hello'}),
+    (u'arg3 -1hey arg4 -- hi hello', {'one': u'hey', 'arg': (u'arg3', u'arg4'), 'trailer': u'hi hello'}),
+    (u'arg3 -1hey arg4 hi -- hello', {'one': u'hey', 'arg': (u'arg3', u'arg4'), 'trailer': u'hi -- hello'}),
+])
+def test_trailer_and_more_nargs(line, expected):
+    state = {}
+
+    @line_command()
+    @click.command()
+    @click.option('-1', '--one')
+    @click.argument('arg', nargs=2)
+    @trailer_argument('trailer')
+    def cmd1(one, arg, trailer):
+        assert not state
+        state.update(one=one, arg=arg, trailer=trailer)
+
+    cmd1.invoke_line(line)
+    assert {k: v for k, v in state.items() if v} == expected
+
+
+@pytest.mark.parametrize(('line', 'expected'), [
     (u'scmd1 hi hello', {'cmd': 'scmd1', 'trailer': u'hi hello'}),
     (u'scmd2 hello hi', {'cmd': 'scmd2', 'trailer': u'hello hi'}),
     (u'-2 scmd2 hey', {'two': True, 'cmd': 'scmd2', 'trailer': u'hey'}),
