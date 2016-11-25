@@ -72,6 +72,37 @@ def test_trailer_and_arg(line, expected):
 
 
 @pytest.mark.parametrize(('line', 'expected'), [
+    (u'scmd1 hi hello', {'cmd': 'scmd1', 'trailer': u'hi hello'}),
+    (u'scmd2 hello hi', {'cmd': 'scmd2', 'trailer': u'hello hi'}),
+    (u'-2 scmd2 hey', {'two': True, 'cmd': 'scmd2', 'trailer': u'hey'}),
+])
+def test_subcommand(line, expected):
+    state = {}
+
+    @line_command()
+    @click.option('-2', '--two/--no-two')
+    @click.group()
+    def cmd1(two):
+        assert not state
+        state.update(two=two)
+
+    @cmd1.command()
+    @trailer_argument('trailer')
+    def scmd1(trailer):
+        assert list(state.keys()) == ['two']
+        state.update(cmd='scmd1', trailer=trailer)
+
+    @cmd1.command()
+    @trailer_argument('trailer')
+    def scmd2(trailer):
+        assert list(state.keys()) == ['two']
+        state.update(cmd='scmd2', trailer=trailer)
+
+    cmd1.invoke_line(line)
+    assert {k: v for k, v in state.items() if v} == expected
+
+
+@pytest.mark.parametrize(('line', 'expected'), [
     (u'-21hey', {'one': u'hey', 'two': True}),
     (u'-12hey', {'one': u'2hey'}),
     (u'--one=--two', {'one': u'--two'}),

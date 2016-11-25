@@ -12,6 +12,6 @@ setup(
     version=versioneer.get_version(),
     cmdclass=versioneer.get_cmdclass(),
 
-    install_requires=['click'],
+    install_requires=['click', 'contextlib2'],
     packages=['irclick'],
 )

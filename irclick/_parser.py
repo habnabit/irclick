@@ -21,6 +21,8 @@ from click.exceptions import UsageError, NoSuchOption, BadOptionUsage, \
      BadArgumentUsage
 from click.parser import Argument, Option, normalize_opt
 
+from irclick._splut import Splut
+
 
 def _unpack_args(args, argspecs):
     """Given an iterable of arguments and an iterable of nargs specifications,
@@ -53,37 +55,17 @@ def _unpack_args(args, argspecs):
         else:
             raise RuntimeError(nargs)
 
-    return tuple(rv), args.pop_rest()
-
-
-class Splut(object):
-
-    def __init__(self, match, string):
-        self.match = match
-        self.string = string
-
-    @classmethod
-    def of_match(cls, match):
-        return cls(match, match.group(0))
-
-    @classmethod
-    def ensure(cls, obj):
-        if isinstance(obj, cls):
-            return obj
-        else:
-            return cls(None, obj)
+    return tuple(rv), list(args.remainder())
 
 
 class ParsingState(object):
 
-    def __init__(self, line):
+    def __init__(self, rargs=()):
         self.opts = {}
         self.order = []
-        self._line = line
-        self._lineiter = re.finditer(u'(?u)\\S+', self._line)
         self._consuming_largs = False
         self._largs = []
-        self._rargs = []
+        self._rargs = list(rargs)
 
     def push_left(self, *args):
         self._largs.extend(Splut.ensure(x) for x in args)
@@ -99,10 +81,8 @@ class ParsingState(object):
             return self._largs.pop(0)
         elif self._rargs:
             return self._rargs.pop(0)
-        m = next(self._lineiter, None)
-        if m is None:
+        else:
             return None
-        return Splut.of_match(m)
 
     def _pop_args(self, n):
         for i in range(n):
@@ -117,8 +97,11 @@ class ParsingState(object):
             [ret] = ret
         return ret
 
+    def remainder(self):
+        return iter(self.pop_arg, None)
+
     def pop_rest(self):
-        return [s.string for s in iter(self.pop_arg, None)]
+        return [s.string for s in self.remainder()]
 
     def pop_trailer(self):
         arg = self.pop_arg()
@@ -127,8 +110,7 @@ class ParsingState(object):
         else:
             self._largs = []
             self._rargs = []
-            self._lineiter = iter(())
-            return self._line[arg.match.start():]
+            return arg.trailer
 
 
 class OptionParser(object):
@@ -203,20 +185,20 @@ class OptionParser(object):
         state = ParsingState(args)
         try:
             self._process_args_for_options(state)
-            largs = self._process_args_for_args(state)
+            remainder = self._process_args_for_args(state)
         except UsageError:
             if self.ctx is None or not self.ctx.resilient_parsing:
                 raise
-        return state.opts, largs, state.order
+        return state.opts, remainder, state.order
 
     def _process_args_for_args(self, state):
         state.shift_largs()
-        pargs, largs = _unpack_args(state, self._args)
+        pargs, remainder = _unpack_args(state, self._args)
 
         for idx, arg in enumerate(self._args):
             arg.process(pargs[idx], state)
 
-        return largs
+        return remainder
 
     def _process_args_for_options(self, state):
         while True:
