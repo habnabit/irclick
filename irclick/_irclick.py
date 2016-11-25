@@ -19,17 +19,17 @@ def make_str(value):
         return _make_str(value)
 
 
-def invoke_line(cmd, line, **kw):
+def invoke_line(cmd, parser_kw, line, **kw):
     args = Splut.args_of_line(line)
     with ExitStack() as stack:
         stack.enter_context(patch(click.core, 'make_str', make_str))
-        patch_all_parsers(stack, cmd)
+        patch_all_parsers(stack, cmd, parser_kw)
         with cmd.make_context('bogus', args=args, **kw) as ctx:
             return cmd.invoke(ctx)
 
 
-def make_parser(cmd, ctx):
-    parser = OptionParser(ctx)
+def make_parser(cmd, parser_kw, ctx):
+    parser = OptionParser(ctx, **parser_kw)
     parser.allow_interspersed_args = ctx.allow_interspersed_args
     parser.ignore_unknown_options = ctx.ignore_unknown_options
     for param in cmd.get_params(ctx):
@@ -47,17 +47,19 @@ def patch(obj, attr, value):
         setattr(obj, attr, prev)
 
 
-def patch_all_parsers(stack, cmd):
-    stack.enter_context(
-        patch(cmd, 'make_parser', functools.partial(make_parser, cmd)))
+def patch_all_parsers(stack, cmd, parser_kw):
+    stack.enter_context(patch(cmd, 'make_parser',
+                              functools.partial(make_parser, cmd, parser_kw)))
     if isinstance(cmd, click.MultiCommand):
         for subcmd in cmd.list_commands(None):
-            patch_all_parsers(stack, cmd.get_command(None, subcmd))
+            patch_all_parsers(stack, cmd.get_command(None, subcmd), parser_kw)
 
 
 def line_command(**kw):
+    parser_kw = {k: kw.pop(k) for k in ('opt_prefixes', 'end_of_options') if k in kw}
+
     def deco(cmd):
-        cmd.invoke_line = functools.partial(invoke_line, cmd)
+        cmd.invoke_line = functools.partial(invoke_line, cmd, parser_kw)
         return cmd
 
     return deco

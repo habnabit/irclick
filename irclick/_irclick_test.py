@@ -178,3 +178,34 @@ def test_varargs(line, expected):
 
     cmd1.invoke_line(line)
     assert state == expected
+
+
+@pytest.mark.parametrize(('line', 'expected'), [
+    (u'/1 arg1', {'one': u'arg1'}),
+    (u'/one arg2', {'one': u'arg2'}),
+    (u'/one=arg3', {'one': u'arg3'}),
+    (u'/2', {'two': True}),
+    (u'/two', {'two': True}),
+    (u'/no-two', {}),
+    (u'trailer here', {'trailer': u'trailer here'}),
+    (u'-- trailer here', {'trailer': u'-- trailer here'}),
+    (u'// trailer here', {'trailer': u'trailer here'}),
+    (u'/two // trailer here', {'two': True, 'trailer': u'trailer here'}),
+    (u'// /two trailer here', {'trailer': u'/two trailer here'}),
+    (u'-1 arg1', {'trailer': u'-1 arg1'}),
+    (u'-2 arg2', {'trailer': u'-2 arg2'}),
+])
+def test_alternate_prefix(line, expected):
+    state = {}
+
+    @line_command(opt_prefixes=['/'], end_of_options='//')
+    @click.command(context_settings=dict(help_option_names=('/h', '/help')))
+    @click.option('/1', '/one')
+    @click.option('/2', '/two;/no-two')
+    @trailer_argument('trailer')
+    def cmd1(one, two, trailer):
+        assert not state
+        state.update(one=one, two=two, trailer=trailer)
+
+    cmd1.invoke_line(line)
+    assert {k: v for k, v in state.items() if v} == expected

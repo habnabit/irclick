@@ -125,7 +125,7 @@ class OptionParser(object):
                 should go with.
     """
 
-    def __init__(self, ctx=None):
+    def __init__(self, ctx=None, opt_prefixes=('-', '--'), end_of_options='--'):
         #: The :class:`~click.Context` for this parser.  This might be
         #: `None` for some advanced use cases.
         self.ctx = ctx
@@ -144,7 +144,8 @@ class OptionParser(object):
             self.ignore_unknown_options = ctx.ignore_unknown_options
         self._short_opt = {}
         self._long_opt = {}
-        self._opt_prefixes = set(['-', '--'])
+        self._opt_prefixes = set(opt_prefixes)
+        self._end_of_options = end_of_options
         self._args = []
 
     def add_option(self, opts, dest, obj, action=None, nargs=1, const=None):
@@ -207,7 +208,7 @@ class OptionParser(object):
             arglen = len(arg)
             # Double dashes always handled explicitly regardless of what
             # prefixes are valid.
-            if arg == '--':
+            if arg == self._end_of_options:
                 return
             elif arg[:1] in self._opt_prefixes and arglen > 1:
                 self._process_opts(splut, state)
