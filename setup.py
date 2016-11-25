@@ -1,5 +1,5 @@
 # Copyright (c) Aaron Gallagher <_@habnab.it>
-# See COPYING for details.
+# See LICENSE for details.
 
 from setuptools import setup
 

@@ -15,10 +15,8 @@
     generated and optparse in the stdlib uses gettext for no good reason
     and might cause us issues.
 """
-import re
 
-from click.exceptions import UsageError, NoSuchOption, BadOptionUsage, \
-     BadArgumentUsage
+from click.exceptions import UsageError, NoSuchOption, BadOptionUsage
 from click.parser import Argument, Option, normalize_opt
 
 from irclick._splut import Splut

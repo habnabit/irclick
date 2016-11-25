@@ -1,8 +1,11 @@
+# Copyright (c) Aaron Gallagher <_@habnab.it>
+# See LICENSE for details.
+
 import click
 import pytest
 from click.exceptions import BadOptionUsage
 
-from irclick._irclick import line_command, trailer_argument
+from irclick import line_command, trailer_argument
 
 
 @pytest.mark.parametrize(('line', 'expected'), [
