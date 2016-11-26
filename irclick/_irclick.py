@@ -56,7 +56,8 @@ def patch_all_parsers(stack, cmd, parser_kw):
 
 
 def line_command(**kw):
-    parser_kw = {k: kw.pop(k) for k in ('opt_prefixes', 'end_of_options') if k in kw}
+    parser_kw = {
+        k: kw.pop(k) for k in ('opt_prefixes', 'end_of_options') if k in kw}
 
     def deco(cmd):
         cmd.invoke_line = functools.partial(invoke_line, cmd, parser_kw)
